@@ -3,7 +3,6 @@
 import logging
 import os
 import os.path
-import tempfile
 import subprocess
 
 from .. import util
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def OnInit(root):
     os.umask(0o077)  # NOTE: allow 0600
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with util.tempdir() as tmpdir:
         for d in util.get_dict_by_name(root, 'netctl'):
             if d.get('netctl', 'false').lower() == 'true':
                 fn      = d.get('name', None)
