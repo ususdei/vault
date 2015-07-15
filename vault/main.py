@@ -7,6 +7,7 @@ import subprocess
 from . import core
 from .backend import gpass
 from . import init
+from . import wifi
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,11 @@ def main():
             logger.error("path not found: %s", "/".join(sys.argv[2:]))
         else:
             print(node.show())
+    elif sys.argv[1] == "wifi":
+        if len(sys.argv) == 3:
+            wifi.wifi(root, sys.argv[2])
+        else:
+            wifi.wifi(root)
     else:
         node = root.query(*sys.argv[1:])
         if node is None:
