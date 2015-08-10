@@ -25,17 +25,23 @@ def wifi(root, name=None):
             return
     else:
         confs = { e.get('SSID') : e for e in util.get_dict_by_name(root, 'SSID') }
+        cells = []
+        quality = 0
         for line in subprocess.check_output(["sudo", "iwlist", interface, "scan"]).decode('UTF-8').splitlines():
-            if line.strip().startswith('ESSID'):
+            if line.strip().startswith('Quality'):
+                cur,_,max = line.split()[0].split('=')[1].partition('/')
+                quality = float(cur) / float(max)
+            elif line.strip().startswith('ESSID'):
                 _,_,ssid = line.partition(':')
                 ssid = ssid.strip().strip('"')
                 if ssid in confs:
-                    entry = confs.get(ssid)
-                    logger.info("Connecting to %s", ssid)
-                    break
-        else:
+                    logger.debug("Found Cell %s [%f]", ssid, quality)
+                    cells.append((quality, confs.get(ssid)))
+        if not cells:
             logger.error("No wifi with matching configuration found")
             return
+        _,entry = sorted(cells)[-1]
+        logger.info("Connecting to %s", entry.get('SSID'))
     interface = entry.get('interface', interface)
     fn        = entry.get('name', None)
     ssid      = entry.get('SSID', fn)
