@@ -36,7 +36,7 @@ def main():
                     print("   %s" % fn.__doc__.strip())
     elif sys.argv[1] in actions:
         for fn in actions.get(sys.argv[1]):
-            fn(sys.argv[2:])
+            fn(*sys.argv[2:])
     else:
         node = root.query(*sys.argv[1:])
         if node is None:
