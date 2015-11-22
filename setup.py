@@ -6,6 +6,6 @@ setup(  name='vault',
         description='python interface to pass',
         author='Markus Blöchl',
         author_email='ususdei@googlemail.com',
-        packages=['vault', 'vault.init', 'vault.backend'],
+        packages=['vault'],
         scripts=['bin/vault'],
      )
