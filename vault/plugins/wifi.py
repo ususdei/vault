@@ -26,6 +26,13 @@ class Wifi:
         subprocess.check_call(["sudo", "ip", "link", "set", "dev", interface, "up"])
         subprocess.call(["sudo", "killall", "wpa_supplicant"])
 
+    def pw2network(self, pw, ssid):
+        lines = pw.splitlines()
+        if len(lines) < 2:
+            return subprocess.check_output(["wpa_passphrase", ssid, pw]).decode('UTF-8')
+        else:
+            return 'network={\n  %s\n}\n\n' % ('\n  '.join(lines[1:-1]))
+
     def do_init(self):
         """ Write netctl config files for known networks into /etc/netctl/. """
         os.umask(0o077)  # NOTE: allow 0600
@@ -53,12 +60,7 @@ class Wifi:
         return
 
     def do_wifi(self, name=None):
-        """ Manually connect to given or best wireless network. """
-        ifcs = [ i for i in os.listdir('/sys/class/net/') if i.startswith('w')]
-        if not ifcs:
-            logger.error("No wifi interface found")
-            return
-        interface = ifcs[0]
+        interface = self.get_interface()
         entry = None
         if name:
             for e in util.get_dict_by_name(self.root, 'SSID'):
@@ -75,8 +77,7 @@ class Wifi:
             try:
                 scan_result = subprocess.check_output(["sudo", "iwlist", interface, "scan"])
             except subprocess.CalledProcessError as e:
-                subprocess.check_call(["sudo", "ip", "link", "set", "dev", interface, "down"])
-                subprocess.check_call(["sudo", "ip", "link", "set", "dev", interface, "up"])
+                self.reset_interface()
                 scan_result = subprocess.check_output(["sudo", "iwlist", interface, "scan"])
             for line in scan_result.decode('UTF-8').splitlines():
                 if line.strip().startswith('Quality'):
@@ -98,17 +99,12 @@ class Wifi:
         ssid      = entry.get('SSID', fn)
         pw        = entry.get('password', None)
         if interface and fn and ssid and pw:
-            pw = pw.splitlines()
-            if len(pw) < 2:
-                supplicant_conf = subprocess.check_output(["wpa_passphrase", ssid, pw[0]]).decode('UTF-8')
-            else:
-                supplicant_conf = 'network={\n  %s\n}\n' % ('\n  '.join(pw[1:-1]))
             with util.tempdir() as tmpdir:
+                network_conf = self.pw2network(pw, ssid)
                 tmpfile = os.path.join(tmpdir, fn)
                 with open(tmpfile, "w") as f:
-                    f.write(supplicant_conf)
-                subprocess.call(["sudo", "killall", "wpa_supplicant"])
-                subprocess.check_call(["sudo", "ip", "link", "set", "dev", interface, "up"])
+                    f.write( network_conf )
+                self.reset_interface(interface)
                 subprocess.check_call(["sudo", "wpa_supplicant", "-B", "-D", "nl80211,wext", "-i", interface, "-c", tmpfile])
                 subprocess.call(["sudo", "dhcpcd", interface])
         return
@@ -117,24 +113,21 @@ class Wifi:
         """ Let wpa_supplicant choose from all available WiFis. """
         interface = self.get_interface()
         networks = list( util.get_dict_by_name(self.root, 'SSID') )
+        if not interface or not networks:
+            return
         with util.tempdir() as tmpdir:
             tmpfile = os.path.join(tmpdir, "wpa_supplicant.conf")
             with open(tmpfile, "w") as f:
                 f.write("ctrl_interface=/run/wpa_supplicant\n")
-                f.write("ctrl_interface_group=wheel\n")
+                f.write("ctrl_interface_group=wheel\n\n")
                 for network in networks:
-                    if network.get("interface") and (network.get("interface") == interface):
+                    if network.get("interface") and (network.get("interface") != interface):
                         continue
                     ssid = network.get('SSID') or network.get('name')
                     pw   = network.get('password')
                     if not (ssid and pw):
                         continue
-                    pw = pw.splitlines()
-                    if len(pw) < 2:
-                        network_conf = subprocess.check_output(["wpa_passphrase", ssid, pw[0]]).decode('UTF-8')
-                    else:
-                        network_conf = 'network={\n  %s\n}\n\n' % ('\n  '.join(pw[1:-1]))
-                    f.write(network_conf)
+                    f.write( self.pw2network(pw, ssid) )
             self.reset_interface(interface)
             subprocess.check_call(["sudo", "wpa_supplicant", "-B", "-D", "nl80211,wext", "-i", interface, "-c", tmpfile])
             subprocess.call(["sudo", "dhcpcd", interface])
