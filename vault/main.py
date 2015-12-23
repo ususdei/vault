@@ -5,6 +5,7 @@ import sys
 import os.path
 import collections
 import subprocess
+import ctypes
 
 from . import core
 from .backend import gpass
@@ -13,6 +14,9 @@ from . import plugins
 logger = logging.getLogger(__name__)
 
 def main():
+    if True:
+        PR_SET_DUMPABLE = 4
+        ctypes.CDLL('libc.so.6').prctl(PR_SET_DUMPABLE, 0)
     root = core.Root()
     root.mount("", gpass.PassDir(""))
     modules = [ plg(root) for plg in plugins.PLUGINS ]
