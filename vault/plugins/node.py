@@ -12,6 +12,6 @@ class Node:
         """ Print some representation of the given node. """
         node = self.root.query(*args)
         if not node:
-            logger.error("path not found: %s", "/".join(sys.argv[2:]))
+            logger.error("path not found: %s", "/".join(args))
         else:
             print(node.show())

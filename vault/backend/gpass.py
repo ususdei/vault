@@ -3,6 +3,7 @@ import os
 import os.path
 import logging
 import subprocess
+import re
 from .. import core
 
 logger = logging.getLogger(__name__)
@@ -14,10 +15,11 @@ logger = logging.getLogger(__name__)
 # * to store passwords
 # *******************************************
 
-root = os.path.expanduser("~/.password-store")
+ROOT = os.path.expanduser("~/.password-store")
+ROOT = os.environ.get("PASSWORD_STORE_DIR", ROOT)
 
 def abspath(path):
-    return os.path.join(root, path)
+    return os.path.join(ROOT, path)
 
 PassValue = core.Value
 
@@ -45,7 +47,7 @@ class PassFile(core.Item):
         if content is None:
             return []
         if not content:
-            logger.warning("Empty file: %s", filepath)
+            logger.warning("Empty file: %s.gpg", self.path)
             return []
         for name,value in self._parse(content).items():
             self._children.append(core.Value(self.path + "/" + name, name, value))
@@ -60,7 +62,7 @@ class PassFile(core.Item):
             cmd = "gpg2 -d --quiet --yes --compress-algo=none --no-encrypt-to --batch --use-agent"
             return subprocess.check_output(cmd.split() + [filepath]).decode('utf-8')
         except subprocess.CalledProcessError as e:
-            logger.error("failed to decrypt file: %s\ngpg2 exited with %d\n%s", filepath, e.returncode, e.output)
+            logger.error("Failed to decrypt file: %s\ngpg2 exited with %d\n%s", filepath, e.returncode, e.output)
         return None
 
     def _parse(self, content):
@@ -83,11 +85,11 @@ class PassFile(core.Item):
         r['password'] = pw
         r['pw']       = pw
         for l in lines:
-            name,_,value = l.partition("=")
-            if name.strip() and value.strip():
-                r[name.strip()] = value.strip()
+            fields = re.split(r'[=:]', l, 1)    # NOTE: allow ':' and '=' as separators
+            if len(fields)==2 and fields[0].strip():
+                r[fields[0].strip()] = fields[1].strip()
             else:
-                logger.warning("meaningless line in %s\n  %s", filepath, l)
+                logger.warning("Meaningless line in %s.gpg\n  %s", self.path, l)
         return r
 
 

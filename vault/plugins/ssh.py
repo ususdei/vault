@@ -19,8 +19,8 @@ class Ssh:
         with util.tempdir() as tmpdir:
             for d in util.get_dict_by_name(self.root, 'ssh-add'):
                 if d.get('ssh-add', 'false').lower() == 'true':
-                    cert = d.get('password', None)
-                    name = d.get('name', None)
+                    cert = d.get('password')
+                    name = d.get('name')
                     if cert and name:
                         logger.debug("Adding certificate %s", name)
                         tmpfile = os.path.join(tmpdir, name)

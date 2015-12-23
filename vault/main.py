@@ -5,6 +5,7 @@ import sys
 import os.path
 import collections
 import subprocess
+
 from . import core
 from .backend import gpass
 from . import plugins
